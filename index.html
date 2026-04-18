@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Violence Detection System</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+/* ─── RESET & BASE ──────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #080b10;
+  --surface:  #0e1420;
+  --panel:    #111827;
+  --border:   rgba(255,255,255,0.07);
+  --border2:  rgba(255,255,255,0.13);
+  --red:      #ff2d4a;
+  --red-dim:  rgba(255,45,74,0.15);
+  --green:    #00e5a0;
+  --green-dim:rgba(0,229,160,0.12);
+  --blue:     #3b82f6;
+  --cyan:     #06b6d4;
+  --yellow:   #f59e0b;
+  --text:     #e2e8f0;
+  --muted:    #64748b;
+  --mono:     'JetBrains Mono', monospace;
+  --sans:     'Syne', sans-serif;
+}
+
+html, body { height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+/* subtle grid bg */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background-image:
+    linear-gradient(rgba(255,45,74,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,45,74,0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+}
+
+/* ─── HEADER ────────────────────────────────────────────────── */
+header {
+  position: relative; z-index: 10;
+  background: rgba(8,11,16,0.9);
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px;
+  height: 60px;
+  display: flex; align-items: center; gap: 16px;
+  backdrop-filter: blur(8px);
+}
+
+.logo {
+  display: flex; align-items: center; gap: 10px;
+  text-decoration: none;
+}
+.logo-box {
+  width: 34px; height: 34px;
+  background: var(--red);
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  box-shadow: 0 0 20px rgba(255,45,74,0.4);
+}
+.logo-name {
+  font-family: var(--sans);
+  font-size: 15px; font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #fff;
+}
+.logo-name span { color: var(--red); }
+
+.header-pills { display: flex; gap: 8px; margin-left: 12px; }
+.pill {
+  font-family: var(--mono);
+  font-size: 10px; font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 1px solid;
+  letter-spacing: 0.5px;
+}
+.pill-yolo  { color: var(--cyan);  border-color: rgba(6,182,212,0.3);  background: rgba(6,182,212,0.07); }
+.pill-r3d   { color: var(--yellow);border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.07);}
+.pill-sort  { color: var(--green); border-color: rgba(0,229,160,0.3);  background: rgba(0,229,160,0.07);}
+
+.header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+
+.server-status {
+  display: flex; align-items: center; gap: 7px;
+  font-family: var(--mono);
+  font-size: 11px; color: var(--muted);
+}
+.server-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: blink 2s infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+/* ─── MAIN LAYOUT ───────────────────────────────────────────── */
+main {
+  flex: 1; position: relative; z-index: 1;
+  display: flex; flex-direction: column;
+  gap: 0;
+}
+
+/* ─── UPLOAD STRIP ──────────────────────────────────────────── */
+.upload-strip {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 18px 28px;
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+
+.upload-label {
+  font-size: 12px; font-weight: 600;
+  color: var(--muted); letter-spacing: 1px; text-transform: uppercase;
+  font-family: var(--mono);
+  flex-shrink: 0;
+}
+
+/* file drop zone */
+.drop-zone {
+  flex: 1; min-width: 220px;
+  border: 1.5px dashed rgba(255,255,255,0.15);
+  border-radius: 10px;
+  padding: 12px 20px;
+  display: flex; align-items: center; gap: 12px;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+  background: rgba(255,255,255,0.02);
+  position: relative;
+  overflow: hidden;
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--blue);
+  background: rgba(59,130,246,0.07);
+}
+.drop-zone input[type=file] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%;
+}
+.drop-icon {
+  width: 36px; height: 36px; border-radius: 8px;
+  background: rgba(59,130,246,0.15);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; font-size: 18px;
+}
+.drop-text p { font-size: 13px; font-weight: 600; color: var(--text); }
+.drop-text span { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+
+.btn-run {
+  padding: 11px 26px;
+  background: var(--red);
+  color: #fff;
+  border: none; border-radius: 9px;
+  font-family: var(--sans); font-size: 13px; font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 0 20px rgba(255,45,74,0.35);
+  transition: opacity .2s, transform .15s, box-shadow .2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btn-run:hover:not(:disabled) {
+  opacity: .9; transform: translateY(-1px);
+  box-shadow: 0 0 30px rgba(255,45,74,0.5);
+}
+.btn-run:active:not(:disabled) { transform: scale(.97); }
+.btn-run:disabled { opacity: .35; cursor: not-allowed; box-shadow: none; }
+
+.btn-reset {
+  padding: 11px 18px;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border2);
+  border-radius: 9px;
+  font-family: var(--sans); font-size: 13px; font-weight: 600;
+  cursor: pointer;
+  transition: color .2s, border-color .2s, background .2s;
+  flex-shrink: 0;
+}
+.btn-reset:hover:not(:disabled) {
+  color: var(--text); border-color: rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.04);
+}
+.btn-reset:disabled { opacity: .3; cursor: not-allowed; }
+
+/* ─── PROGRESS BAR STRIP ────────────────────────────────────── */
+.progress-strip {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px;
+  height: 0; overflow: hidden;
+  transition: height .3s;
+}
+.progress-strip.visible { height: 54px; }
+
+.progress-inner {
+  height: 100%;
+  display: flex; align-items: center; gap: 16px;
+}
+
+.progress-bar-wrap {
+  flex: 1; height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 99px; overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--red), #ff6b35);
+  border-radius: 99px;
+  transition: width .4s;
+  box-shadow: 0 0 10px rgba(255,45,74,0.5);
+}
+
+.progress-pct {
+  font-family: var(--mono); font-size: 12px; font-weight: 600;
+  color: var(--red); min-width: 36px;
+}
+.progress-msg {
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 420px;
+}
+
+/* ─── VIDEO PANELS ──────────────────────────────────────────── */
+.panels {
+  flex: 1;
+  display: grid; grid-template-columns: 1fr 1fr;
+  min-height: 460px;
+}
+
+.panel {
+  display: flex; flex-direction: column;
+  border-right: 1px solid var(--border);
+}
+.panel:last-child { border-right: none; }
+
+.panel-head {
+  padding: 12px 20px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+  flex-shrink: 0;
+}
+.ph-icon {
+  width: 30px; height: 30px; border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; flex-shrink: 0;
+}
+.ph-icon.blue { background: rgba(59,130,246,0.15); }
+.ph-icon.red  { background: rgba(255,45,74,0.15);  }
+.ph-title { font-size: 13px; font-weight: 700; }
+.ph-sub   { font-size: 11px; color: var(--muted); margin-top: 1px; font-family: var(--mono); }
+.ph-tag {
+  margin-left: auto;
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  padding: 3px 9px; border-radius: 5px; letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.ph-tag.src { background: rgba(59,130,246,0.12); color: var(--blue); }
+.ph-tag.out { background: rgba(255,45,74,0.12);  color: var(--red);  }
+
+.panel-body {
+  flex: 1; position: relative;
+  background: #050709;
+  display: flex; align-items: center; justify-content: center;
+  min-height: 280px; overflow: hidden;
+}
+
+/* ─── EMPTY STATE ───────────────────────────────────────────── */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: 32px; text-align: center;
+}
+.empty-ring {
+  width: 80px; height: 80px; border-radius: 50%;
+  border: 2px dashed rgba(255,255,255,0.1);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px;
+  transition: border-color .2s;
+}
+.empty-state:hover .empty-ring { border-color: rgba(255,255,255,0.2); }
+.empty-state p { font-size: 13px; color: var(--muted); line-height: 1.7; }
+.empty-state code {
+  font-family: var(--mono); font-size: 10px;
+  color: rgba(255,255,255,0.25);
+}
+
+/* ─── VIDEO / OUTPUT ─────────────────────────────────────────── */
+#src-video {
+  width: 100%; height: 100%; object-fit: contain;
+  display: none;
+}
+
+.out-placeholder {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 16px; padding: 32px; text-align: center;
+}
+.out-ring {
+  width: 80px; height: 80px; border-radius: 50%;
+  border: 2px dashed rgba(255,45,74,0.2);
+  display: flex; align-items: center; justify-content: center; font-size: 28px;
+}
+.out-placeholder p { font-size: 13px; color: var(--muted); line-height: 1.7; }
+
+/* processing spinner */
+.spinner-wrap {
+  display: none; flex-direction: column; align-items: center; gap: 16px;
+}
+.spinner {
+  width: 56px; height: 56px;
+  border: 3px solid rgba(255,45,74,0.15);
+  border-top-color: var(--red);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner-label { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+/* done state */
+.done-wrap {
+  display: none; flex-direction: column; align-items: center; gap: 14px;
+  padding: 24px; text-align: center;
+}
+.done-icon { font-size: 42px; }
+.done-msg { font-size: 13px; color: var(--green); font-weight: 600; line-height: 1.7; }
+.btn-download {
+  margin-top: 6px;
+  padding: 10px 22px;
+  background: var(--green-dim);
+  color: var(--green);
+  border: 1px solid rgba(0,229,160,0.3);
+  border-radius: 8px;
+  font-family: var(--sans); font-size: 13px; font-weight: 700;
+  cursor: pointer;
+  transition: background .2s, box-shadow .2s;
+  text-decoration: none;
+  display: inline-block;
+}
+.btn-download:hover {
+  background: rgba(0,229,160,0.2);
+  box-shadow: 0 0 16px rgba(0,229,160,0.2);
+}
+
+/* error state */
+.error-wrap {
+  display: none; flex-direction: column; align-items: center; gap: 12px;
+  padding: 24px; text-align: center;
+}
+.error-icon { font-size: 38px; }
+.error-msg {
+  font-family: var(--mono); font-size: 11px; color: var(--red);
+  line-height: 1.6; max-width: 320px;
+  background: var(--red-dim); padding: 10px 14px; border-radius: 8px;
+  border: 1px solid rgba(255,45,74,0.2);
+}
+
+/* ─── SCANLINE ANIMATION ON PROCESSING ─────────────────────── */
+.panel-body.scanning::after {
+  content: '';
+  position: absolute; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--red), transparent);
+  animation: scan 1.4s linear infinite;
+  opacity: 0.5;
+  pointer-events: none;
+}
+@keyframes scan {
+  0%  { top: -2px; }
+  100%{ top: 100%; }
+}
+
+/* ─── FOOTER / LOG BAR ──────────────────────────────────────── */
+footer {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 10px 28px;
+  display: flex; align-items: center; gap: 20px;
+  font-family: var(--mono); font-size: 11px;
+  position: relative; z-index: 10;
+}
+
+.log-prefix { color: var(--red); font-weight: 700; flex-shrink: 0; }
+#log-msg { color: var(--muted); flex: 1; }
+.footer-meta { color: rgba(255,255,255,0.15); flex-shrink: 0; }
+
+/* ─── RESPONSIVE ─────────────────────────────────────────────── */
+@media (max-width: 680px) {
+  .panels { grid-template-columns: 1fr; }
+  .panel { border-right: none; border-bottom: 1px solid var(--border); }
+  .header-pills { display: none; }
+  .upload-strip { flex-direction: column; align-items: stretch; }
+  .btn-run, .btn-reset { width: 100%; text-align: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- ─── HEADER ─────────────────────────────────────────────── -->
+<header>
+  <div class="logo">
+    <div class="logo-box">🎯</div>
+    <div class="logo-name">Violence<span>Detect</span></div>
+  </div>
+  <div class="header-pills">
+    <span class="pill pill-yolo">YOLOv8</span>
+    <span class="pill pill-r3d">R3D-18</span>
+    <span class="pill pill-sort">DeepSort</span>
+  </div>
+  <div class="header-right">
+    <div class="server-status">
+      <div class="server-dot" id="server-dot"></div>
+      <span id="server-label">Flask server connected</span>
+    </div>
+  </div>
+</header>
+
+<!-- ─── UPLOAD STRIP ───────────────────────────────────────── -->
+<div class="upload-strip">
+  <span class="upload-label">Input</span>
+
+  <div class="drop-zone" id="drop-zone">
+    <input type="file" id="file-input" accept="video/*"/>
+    <div class="drop-icon">📹</div>
+    <div class="drop-text">
+      <p id="file-name">Click or drag &amp; drop a video</p>
+      <span>MP4 · AVI · MOV · WEBM</span>
+    </div>
+  </div>
+
+  <button class="btn-run"   id="btn-run"   disabled>▶ Run Detection</button>
+  <button class="btn-reset" id="btn-reset" disabled>↺ Reset</button>
+</div>
+
+<!-- ─── PROGRESS STRIP ─────────────────────────────────────── -->
+<div class="progress-strip" id="progress-strip">
+  <div class="progress-inner">
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="prog-fill"></div>
+    </div>
+    <span class="progress-pct" id="prog-pct">0%</span>
+    <span class="progress-msg" id="prog-msg">Initializing…</span>
+  </div>
+</div>
+
+<!-- ─── VIDEO PANELS ───────────────────────────────────────── -->
+<div class="panels">
+
+  <!-- LEFT: Source video -->
+  <div class="panel">
+    <div class="panel-head">
+      <div class="ph-icon blue">📥</div>
+      <div>
+        <div class="ph-title">Input Video</div>
+        <div class="ph-sub">Original · unprocessed</div>
+      </div>
+      <span class="ph-tag src">Source</span>
+    </div>
+    <div class="panel-body" id="src-panel">
+      <div class="empty-state" id="src-empty">
+        <div class="empty-ring">🎞️</div>
+        <p>Upload a video file<br/>to preview it here</p>
+        <code>MP4 / AVI / MOV / WEBM</code>
+      </div>
+      <video id="src-video" controls></video>
+    </div>
+  </div>
+
+  <!-- RIGHT: Output / annotated -->
+  <div class="panel">
+    <div class="panel-head">
+      <div class="ph-icon red">🔍</div>
+      <div>
+        <div class="ph-title">Detection Output</div>
+        <div class="ph-sub">Annotated · YOLOv8 + R3D-18</div>
+      </div>
+      <span class="ph-tag out">Analysis</span>
+    </div>
+    <div class="panel-body" id="out-panel">
+
+      <!-- waiting -->
+      <div class="out-placeholder" id="out-empty">
+        <div class="out-ring">⚡</div>
+        <p>Annotated output will appear<br/>here after running detection</p>
+      </div>
+
+      <!-- processing -->
+      <div class="spinner-wrap" id="out-spinner">
+        <div class="spinner"></div>
+        <div class="spinner-label" id="spinner-label">Processing frames…</div>
+      </div>
+
+      <!-- done -->
+      <div class="done-wrap" id="out-done">
+        <div class="done-icon">✅</div>
+        <div class="done-msg" id="done-msg">Analysis complete!</div>
+        <a class="btn-download" id="btn-download" href="#" download>⬇ Download Result Video</a>
+      </div>
+
+      <!-- error -->
+      <div class="error-wrap" id="out-error">
+        <div class="error-icon">❌</div>
+        <div class="error-msg" id="error-msg">An error occurred.</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ─── LOG FOOTER ─────────────────────────────────────────── -->
+<footer>
+  <span class="log-prefix">&gt;_</span>
+  <span id="log-msg">Upload a video and click Run Detection to start.</span>
+  <span class="footer-meta">localhost:5000</span>
+</footer>
+
+
+<script>
+/* ════════════════════════════════════════════════════════════
+   VIOLENCE DETECTION — FRONTEND LOGIC
+   ════════════════════════════════════════════════════════════ */
+
+const API = "";   // same origin (Flask serves this HTML)
+
+// ── DOM refs ─────────────────────────────────────────────────
+const fileInput     = document.getElementById("file-input");
+const dropZone      = document.getElementById("drop-zone");
+const fileNameEl    = document.getElementById("file-name");
+const btnRun        = document.getElementById("btn-run");
+const btnReset      = document.getElementById("btn-reset");
+const srcEmpty      = document.getElementById("src-empty");
+const srcVideo      = document.getElementById("src-video");
+const outPanel      = document.getElementById("out-panel");
+const outEmpty      = document.getElementById("out-empty");
+const outSpinner    = document.getElementById("out-spinner");
+const outDone       = document.getElementById("out-done");
+const outError      = document.getElementById("out-error");
+const spinnerLabel  = document.getElementById("spinner-label");
+const progStrip     = document.getElementById("progress-strip");
+const progFill      = document.getElementById("prog-fill");
+const progPct       = document.getElementById("prog-pct");
+const progMsg       = document.getElementById("prog-msg");
+const logMsg        = document.getElementById("log-msg");
+const doneMsgEl     = document.getElementById("done-msg");
+const btnDownload   = document.getElementById("btn-download");
+const errorMsgEl    = document.getElementById("error-msg");
+const serverDot     = document.getElementById("server-dot");
+const serverLabel   = document.getElementById("server-label");
+
+let pollTimer   = null;
+let currentFile = null;
+let currentJobId= null;
+
+
+/* ── Helpers ─────────────────────────────────────────────── */
+function log(msg) { logMsg.textContent = msg; }
+
+function showOutState(state) {
+  // state: "empty" | "spinner" | "done" | "error"
+  outEmpty.style.display   = state === "empty"   ? "flex" : "none";
+  outSpinner.style.display = state === "spinner" ? "flex" : "none";
+  outDone.style.display    = state === "done"    ? "flex" : "none";
+  outError.style.display   = state === "error"   ? "flex" : "none";
+}
+
+function setProgress(pct, msg) {
+  progFill.style.width = pct + "%";
+  progPct.textContent  = pct + "%";
+  progMsg.textContent  = msg;
+}
+
+function setScanning(on) {
+  outPanel.classList.toggle("scanning", on);
+}
+
+
+/* ── File pick ───────────────────────────────────────────── */
+fileInput.addEventListener("change", () => {
+  if (fileInput.files[0]) loadFile(fileInput.files[0]);
+});
+
+// Drag & drop
+dropZone.addEventListener("dragover", e => {
+  e.preventDefault(); dropZone.classList.add("drag-over");
+});
+dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
+dropZone.addEventListener("drop", e => {
+  e.preventDefault(); dropZone.classList.remove("drag-over");
+  if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+});
+
+function loadFile(file) {
+  currentFile = file;
+  fileNameEl.textContent = file.name;
+
+  // Preview in left panel
+  const url = URL.createObjectURL(file);
+  srcVideo.src = url;
+  srcVideo.style.display = "block";
+  srcEmpty.style.display = "none";
+
+  btnRun.disabled   = false;
+  btnReset.disabled = false;
+  log(`Loaded: ${file.name} (${(file.size/1024/1024).toFixed(1)} MB)`);
+}
+
+
+/* ── Run Detection ───────────────────────────────────────── */
+btnRun.addEventListener("click", async () => {
+  if (!currentFile) return;
+
+  // Disable buttons during run
+  btnRun.disabled   = true;
+  btnReset.disabled = false;
+
+  // Show progress strip + spinner
+  progStrip.classList.add("visible");
+  setProgress(0, "Uploading video…");
+  showOutState("spinner");
+  setScanning(true);
+  spinnerLabel.textContent = "Uploading…";
+  log("Uploading video to Flask server…");
+
+  try {
+    // 1. Upload
+    const formData = new FormData();
+    formData.append("video", currentFile);
+
+    const uploadRes = await fetch(`${API}/upload`, { method: "POST", body: formData });
+
+    if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`);
+    const { job_id, error } = await uploadRes.json();
+    if (error) throw new Error(error);
+
+    currentJobId = job_id;
+    log(`Job started: #${job_id} — polling for progress…`);
+    spinnerLabel.textContent = "Models loading…";
+    setProgress(2, "Initializing models…");
+
+    // 2. Poll
+    pollTimer = setInterval(() => pollJob(job_id), 1200);
+
+  } catch (err) {
+    handleError(err.message);
+  }
+});
+
+
+/* ── Poll job status ─────────────────────────────────────── */
+async function pollJob(job_id) {
+  try {
+    const res  = await fetch(`${API}/status/${job_id}`);
+    if (!res.ok) throw new Error(`Status error: ${res.status}`);
+    const data = await res.json();
+
+    if (data.error) throw new Error(data.error);
+
+    const pct = data.progress || 0;
+    const msg = data.message  || "Processing…";
+
+    setProgress(pct, msg);
+    spinnerLabel.textContent = msg;
+    log(`[${pct}%] ${msg}`);
+
+    if (data.status === "done") {
+      clearInterval(pollTimer);
+      handleDone(job_id, msg);
+    } else if (data.status === "error") {
+      clearInterval(pollTimer);
+      handleError(msg);
+    }
+    // "queued" or "running" → keep polling
+
+  } catch (err) {
+    clearInterval(pollTimer);
+    handleError(err.message);
+  }
+}
+
+
+/* ── Done ────────────────────────────────────────────────── */
+function handleDone(job_id, msg) {
+  setScanning(false);
+  showOutState("done");
+  setProgress(100, "Complete!");
+  doneMsgEl.textContent = msg;
+  btnDownload.href = `${API}/download/${job_id}`;
+  btnRun.disabled   = false;
+  log(`✓ Done — download your annotated video!`);
+}
+
+
+/* ── Error ───────────────────────────────────────────────── */
+function handleError(msg) {
+  setScanning(false);
+  showOutState("error");
+  errorMsgEl.textContent = msg;
+  btnRun.disabled = false;
+  log(`✗ Error: ${msg}`);
+  progStrip.classList.remove("visible");
+}
+
+
+/* ── Reset ───────────────────────────────────────────────── */
+btnReset.addEventListener("click", () => {
+  clearInterval(pollTimer);
+  currentFile  = null;
+  currentJobId = null;
+
+  fileInput.value      = "";
+  fileNameEl.textContent = "Click or drag & drop a video";
+  srcVideo.src         = "";
+  srcVideo.style.display = "none";
+  srcEmpty.style.display = "flex";
+
+  showOutState("empty");
+  setScanning(false);
+  progStrip.classList.remove("visible");
+  setProgress(0, "");
+  btnRun.disabled   = true;
+  btnReset.disabled = true;
+  log("Reset — ready for a new video.");
+});
+
+
+/* ── Server ping (on load) ───────────────────────────────── */
+async function pingServer() {
+  try {
+    const res = await fetch(`${API}/`, { method: "HEAD" });
+    if (res.ok) {
+      serverDot.style.background = "var(--green)";
+      serverDot.style.boxShadow  = "0 0 8px var(--green)";
+      serverLabel.textContent    = "Flask server connected";
+    } else {
+      throw new Error();
+    }
+  } catch {
+    serverDot.style.background = "var(--red)";
+    serverDot.style.boxShadow  = "0 0 8px var(--red)";
+    serverLabel.textContent    = "Server offline — run app.py";
+  }
+}
+pingServer();
+
+// init
+showOutState("empty");
+</script>
+</body>
+</html>
